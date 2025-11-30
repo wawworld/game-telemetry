@@ -4,15 +4,29 @@ import os
 from pathlib import Path
 
 # Get project root (where .spec file is located)
-spec_root = Path(SPECPATH).resolve()
+if hasattr(sys, '_MEIPASS'):
+    # Running as bundled executable
+    spec_root = Path(sys._MEIPASS)
+else:
+    # Running from source
+    spec_root = Path(SPECPATH if 'SPECPATH' in dir() else '.').resolve()
+
+# Ensure we're in the project root
+if not (spec_root / 'src' / 'cli' / 'main.py').exists():
+    # Try current directory
+    spec_root = Path.cwd()
+
+print(f"Spec root: {spec_root}")
+print(f"Looking for: {spec_root / 'src' / 'cli' / 'main.py'}")
+print(f"Exists: {(spec_root / 'src' / 'cli' / 'main.py').exists()}")
 
 a = Analysis(
     [str(spec_root / 'src' / 'cli' / 'main.py')],
     pathex=[str(spec_root / 'src')],
     binaries=[],
     datas=[
-        ('configs', 'configs'),
-        ('reference_images', 'reference_images'),
+        (str(spec_root / 'configs'), 'configs'),
+        (str(spec_root / 'reference_images'), 'reference_images'),
     ],
     hiddenimports=[
         'pynput.keyboard',
