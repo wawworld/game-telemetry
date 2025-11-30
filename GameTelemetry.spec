@@ -1,12 +1,28 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+from pathlib import Path
 
+# Get project root
+spec_root = Path(SPECPATH)
 
 a = Analysis(
-    ['/Users/changhoonpark/Developer/spec-kit-project/src/cli/main.py'],
-    pathex=[],
+    ['src/cli/main.py'],
+    pathex=[str(spec_root / 'src')],
     binaries=[],
-    datas=[('configs', 'configs'), ('reference_images', 'reference_images')],
-    hiddenimports=['pynput.keyboard._win32', 'pynput.mouse._win32', 'PIL._tkinter_finder'],
+    datas=[
+        ('configs', 'configs'),
+        ('reference_images', 'reference_images'),
+    ],
+    hiddenimports=[
+        'pynput.keyboard',
+        'pynput.mouse',
+        'PIL',
+        'PIL.Image',
+        'cv2',
+        'yaml',
+        'psutil',
+        'asyncio',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

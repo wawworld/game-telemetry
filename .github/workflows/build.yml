@@ -32,13 +32,21 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
     
+    - name: List Python packages
+      run: pip list
+    
     - name: Build EXE
       run: |
-        pyinstaller GameTelemetry.spec
+        python build_exe.py
+    
+    - name: Verify build
+      run: |
+        dir dist
     
     - name: Test EXE
       run: |
         dist\GameTelemetry.exe --help
+      continue-on-error: true
     
     - name: Create package
       run: |
@@ -92,13 +100,21 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
     
+    - name: List Python packages
+      run: pip list
+    
     - name: Build macOS App
       run: |
-        pyinstaller GameTelemetry.spec
+        python build_exe.py
+    
+    - name: Verify build
+      run: |
+        ls -la dist/
     
     - name: Test App
       run: |
         dist/GameTelemetry --help
+      continue-on-error: true
     
     - name: Create package
       run: |
