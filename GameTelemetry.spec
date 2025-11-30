@@ -1,12 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
+import os
 from pathlib import Path
 
-# Get project root
-spec_root = Path(SPECPATH)
+# Get project root (where .spec file is located)
+spec_root = Path(SPECPATH).resolve()
 
 a = Analysis(
-    ['src/cli/main.py'],
+    [str(spec_root / 'src' / 'cli' / 'main.py')],
     pathex=[str(spec_root / 'src')],
     binaries=[],
     datas=[
