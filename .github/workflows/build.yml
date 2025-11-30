@@ -6,6 +6,7 @@ on:
       - 'v*'
     branches:
       - main
+      - '001-game-telemetry'  # 현재 브랜치 추가
   pull_request:
     branches:
       - main
@@ -63,10 +64,22 @@ jobs:
         copy dist\GameTelemetry.exe GameTelemetry-Windows\
         xcopy /E /I configs GameTelemetry-Windows\configs
         xcopy /E /I reference_images GameTelemetry-Windows\reference_images
-        echo Game Telemetry System > GameTelemetry-Windows\README.txt
-        echo. >> GameTelemetry-Windows\README.txt
-        echo Usage: >> GameTelemetry-Windows\README.txt
-        echo   GameTelemetry.exe start --config configs\test_roi.yaml >> GameTelemetry-Windows\README.txt
+        @"
+        Game Telemetry System
+        ====================
+        
+        Usage:
+          GameTelemetry.exe start --config configs\test_roi.yaml
+          GameTelemetry.exe start --config configs\test_roi.yaml --participant-id user123
+          GameTelemetry.exe --help
+        
+        Requirements:
+          - Windows 10 or later
+          - No Python installation required
+        
+        For more information:
+          https://github.com/wawworld/game-telemetry
+        "@ | Out-File -FilePath GameTelemetry-Windows\README.txt -Encoding UTF8
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -138,12 +151,27 @@ jobs:
       run: |
         mkdir -p GameTelemetry-macOS
         cp dist/GameTelemetry GameTelemetry-macOS/
+        chmod +x GameTelemetry-macOS/GameTelemetry
         cp -r configs GameTelemetry-macOS/
         cp -r reference_images GameTelemetry-macOS/
-        echo "Game Telemetry System" > GameTelemetry-macOS/README.txt
-        echo "" >> GameTelemetry-macOS/README.txt
-        echo "Usage:" >> GameTelemetry-macOS/README.txt
-        echo "  ./GameTelemetry start --config configs/test_roi.yaml" >> GameTelemetry-macOS/README.txt
+        cat > GameTelemetry-macOS/README.txt << 'EOF'
+        Game Telemetry System
+        ====================
+        
+        Usage:
+          ./GameTelemetry start --config configs/test_roi.yaml
+          ./GameTelemetry start --config configs/test_roi.yaml --participant-id user123
+          ./GameTelemetry --help
+        
+        Requirements:
+          - macOS 11 or later
+          - No Python installation required
+        
+        Note: On first run, you may need to allow the app in System Preferences > Security & Privacy
+        
+        For more information:
+          https://github.com/wawworld/game-telemetry
+        EOF
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
