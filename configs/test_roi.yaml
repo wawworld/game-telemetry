@@ -1,0 +1,39 @@
+# Test ROI Detection Configuration
+# This config enables automatic ROI detection
+
+game_name: "Test ROI Detection"
+process_name: "test_roi.exe"
+
+# ROI Detection enabled
+roi_detection:
+  enabled: true
+  reference_images:
+    - "reference_images/dino.png"
+  match_threshold: 0.7  # 70% similarity
+  padding: 20  # Add 20px padding around detected region
+  update_interval_seconds: 3.0  # Re-detect every 3 seconds
+  retry_interval_seconds: 2.0  # Retry every 2 seconds if failed
+  manual_fallback_coords:
+    x: 100
+    y: 100
+    width: 800
+    height: 600
+
+session_start_triggers:
+  - type: "manual"
+
+session_end_triggers:
+  - type: "keyboard"
+    parameters:
+      key: "F9"
+
+capture_settings:
+  frame_rate: 10
+  image_format: "jpeg"
+  image_quality: 85
+  enabled_event_types:
+    - "keyboard_press"
+    - "keyboard_release"
+    - "mouse_click"
+
+output_directory: "data/test_roi"

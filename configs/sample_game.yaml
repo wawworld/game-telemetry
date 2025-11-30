@@ -1,0 +1,54 @@
+# Sample Game Configuration
+# Copy this file and customize for your game
+
+# Basic game identification (provide at least one)
+game_name: "Sample Game"
+process_name: "game.exe"  # Windows process name
+# window_title: "My Game Window"  # Alternative: match by window title
+# executable_path: "/path/to/game"  # Alternative: full path to executable
+
+# ROI Detection (optional - for automatic game region detection)
+roi_detection:
+  enabled: false  # Set to true to use ROI detection
+  reference_images:
+    - "reference_images/game_menu.png"
+    - "reference_images/game_hud.png"
+  match_threshold: 0.875  # 87.5% similarity (0.0-1.0)
+  padding: 10  # Pixels to add around detected region
+  update_interval_seconds: 5.0  # Re-detect ROI every 5 seconds
+  retry_interval_seconds: 5.0  # Retry interval when detection fails
+  manual_fallback_coords:  # Fallback coordinates if detection fails
+    x: 100
+    y: 100
+    width: 1280
+    height: 720
+
+# Session Start Triggers (OR logic - any trigger starts session)
+session_start_triggers:
+  - type: "manual"  # Start via CLI command
+
+# Session End Triggers (OR logic - any trigger ends session)
+session_end_triggers:
+  - type: "keyboard"
+    parameters:
+      key: "F9"  # Press F9 to stop
+  - type: "timeout"
+    parameters:
+      duration_seconds: 3600  # Auto-stop after 1 hour
+
+# Capture Settings
+capture_settings:
+  frame_rate: 15  # Frames per second for screen capture
+  image_format: "jpeg"  # "jpeg" or "png"
+  image_quality: 85  # For JPEG: 0-100 (higher = better quality, larger files)
+  
+  # Event types to capture
+  enabled_event_types:
+    - "keyboard_press"
+    - "keyboard_release"
+    - "mouse_click"
+    - "mouse_move"
+    - "mouse_scroll"
+
+# Output directory for collected data
+output_directory: "data/sample_game"

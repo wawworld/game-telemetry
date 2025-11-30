@@ -1,0 +1,24 @@
+# Timeout Trigger Test Configuration
+
+game_name: "Timeout Test"
+process_name: "test.exe"
+
+roi_detection:
+  enabled: false
+
+session_start_triggers:
+  - type: "manual"
+
+session_end_triggers:
+  - type: "timeout"
+    parameters:
+      duration_seconds: 5  # Auto-stop after 5 seconds
+
+capture_settings:
+  frame_rate: 10
+  image_format: "jpeg"
+  image_quality: 85
+  enabled_event_types:
+    - "keyboard_press"
+
+output_directory: "data/timeout_test"

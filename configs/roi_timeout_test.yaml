@@ -1,0 +1,34 @@
+
+game_name: "ROI Timeout Test"
+process_name: "test.exe"
+
+roi_detection:
+  enabled: true
+  reference_images:
+    - "reference_images/dino.png"
+  match_threshold: 0.7
+  padding: 20
+  update_interval_seconds: 3.0
+  retry_interval_seconds: 2.0
+  manual_fallback_coords:
+    x: 100
+    y: 100
+    width: 800
+    height: 600
+
+session_start_triggers:
+  - type: "manual"
+
+session_end_triggers:
+  - type: "timeout"
+    parameters:
+      duration_seconds: 5
+
+capture_settings:
+  frame_rate: 10
+  image_format: "jpeg"
+  image_quality: 85
+  enabled_event_types:
+    - "keyboard_press"
+
+output_directory: "data/test_roi"

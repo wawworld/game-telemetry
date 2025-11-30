@@ -1,0 +1,131 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build EXE
+      run: |
+        pyinstaller GameTelemetry.spec
+    
+    - name: Test EXE
+      run: |
+        dist\GameTelemetry.exe --help
+    
+    - name: Create package
+      run: |
+        mkdir GameTelemetry-Windows
+        copy dist\GameTelemetry.exe GameTelemetry-Windows\
+        xcopy /E /I configs GameTelemetry-Windows\configs
+        xcopy /E /I reference_images GameTelemetry-Windows\reference_images
+        echo Game Telemetry System > GameTelemetry-Windows\README.txt
+        echo. >> GameTelemetry-Windows\README.txt
+        echo Usage: >> GameTelemetry-Windows\README.txt
+        echo   GameTelemetry.exe start --config configs\test_roi.yaml >> GameTelemetry-Windows\README.txt
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GameTelemetry-Windows
+        path: GameTelemetry-Windows/
+    
+    - name: Zip package
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        Compress-Archive -Path GameTelemetry-Windows -DestinationPath GameTelemetry-Windows.zip
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          GameTelemetry-Windows.zip
+          dist/GameTelemetry.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS App
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build macOS App
+      run: |
+        pyinstaller GameTelemetry.spec
+    
+    - name: Test App
+      run: |
+        dist/GameTelemetry --help
+    
+    - name: Create package
+      run: |
+        mkdir -p GameTelemetry-macOS
+        cp dist/GameTelemetry GameTelemetry-macOS/
+        cp -r configs GameTelemetry-macOS/
+        cp -r reference_images GameTelemetry-macOS/
+        echo "Game Telemetry System" > GameTelemetry-macOS/README.txt
+        echo "" >> GameTelemetry-macOS/README.txt
+        echo "Usage:" >> GameTelemetry-macOS/README.txt
+        echo "  ./GameTelemetry start --config configs/test_roi.yaml" >> GameTelemetry-macOS/README.txt
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GameTelemetry-macOS
+        path: GameTelemetry-macOS/
+    
+    - name: Create tarball
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        tar -czf GameTelemetry-macOS.tar.gz GameTelemetry-macOS
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: GameTelemetry-macOS.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
