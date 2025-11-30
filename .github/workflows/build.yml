@@ -35,9 +35,18 @@ jobs:
     - name: List Python packages
       run: pip list
     
+    - name: Debug - Show directory structure
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "Directory contents:"
+        dir
+        echo "src directory:"
+        dir src
+    
     - name: Build EXE
       run: |
-        python build_exe.py
+        pyinstaller --onefile --console --name=GameTelemetry --paths=src --add-data="configs;configs" --add-data="reference_images;reference_images" --hidden-import=pynput.keyboard --hidden-import=pynput.mouse --hidden-import=PIL --hidden-import=cv2 --hidden-import=yaml --hidden-import=psutil --collect-submodules=pynput src/cli/main.py
     
     - name: Verify build
       run: |
@@ -103,9 +112,18 @@ jobs:
     - name: List Python packages
       run: pip list
     
+    - name: Debug - Show directory structure
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "Directory contents:"
+        ls -la
+        echo "src directory:"
+        ls -la src
+    
     - name: Build macOS App
       run: |
-        python build_exe.py
+        pyinstaller --onefile --console --name=GameTelemetry --paths=src --add-data="configs:configs" --add-data="reference_images:reference_images" --hidden-import=pynput.keyboard --hidden-import=pynput.mouse --hidden-import=PIL --hidden-import=cv2 --hidden-import=yaml --hidden-import=psutil --collect-submodules=pynput src/cli/main.py
     
     - name: Verify build
       run: |
