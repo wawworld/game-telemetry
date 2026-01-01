@@ -1,0 +1,409 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-windows:
+    name: Build Windows Release
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set version
+      id: version
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/}"
+        fi
+        echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+        echo "VERSION_NUM=${VERSION#v}" >> $GITHUB_OUTPUT
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build Windows EXE
+      run: |
+        pyinstaller --clean --noconfirm `
+          --onefile `
+          --console `
+          --name=GameTelemetry `
+          --paths=src `
+          --add-data="configs;configs" `
+          --add-data="reference_images;reference_images" `
+          --hidden-import=pynput.keyboard `
+          --hidden-import=pynput.mouse `
+          --hidden-import=pynput.keyboard._win32 `
+          --hidden-import=pynput.mouse._win32 `
+          --hidden-import=PIL `
+          --hidden-import=cv2 `
+          --hidden-import=yaml `
+          --hidden-import=psutil `
+          --collect-submodules=pynput `
+          src/cli/main.py
+    
+    - name: Verify build
+      run: |
+        if (Test-Path "dist\GameTelemetry.exe") {
+          Write-Host "✓ Build successful"
+          $size = (Get-Item "dist\GameTelemetry.exe").Length / 1MB
+          Write-Host "File size: $($size.ToString('F2')) MB"
+        } else {
+          Write-Error "Build failed - executable not found"
+          exit 1
+        }
+    
+    - name: Test executable
+      run: |
+        dist\GameTelemetry.exe --help
+      continue-on-error: true
+    
+    - name: Create release package
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $packageName = "GameTelemetry-$version-Windows"
+        
+        # Create package directory
+        New-Item -ItemType Directory -Path $packageName -Force
+        
+        # Copy files
+        Copy-Item "dist\GameTelemetry.exe" "$packageName\"
+        Copy-Item -Recurse "configs" "$packageName\"
+        Copy-Item -Recurse "reference_images" "$packageName\"
+        
+        # Create README
+        @"
+        Game Telemetry System - Windows Release
+        ========================================
+        
+        Version: $version
+        Build Date: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+        
+        QUICK START
+        -----------
+        1. Open Command Prompt or PowerShell in this directory
+        2. Run: GameTelemetry.exe start --config configs\test_roi.yaml
+        
+        USAGE
+        -----
+        Basic:
+          GameTelemetry.exe start --config configs\test_roi.yaml
+        
+        With participant ID:
+          GameTelemetry.exe start --config configs\test_roi.yaml --participant-id user123
+        
+        Show help:
+          GameTelemetry.exe --help
+        
+        REQUIREMENTS
+        ------------
+        - Windows 10 or later (64-bit)
+        - No Python installation required
+        - Administrator privileges may be needed for keyboard/mouse monitoring
+        
+        CONFIGURATION
+        -------------
+        Edit YAML files in the 'configs' directory to customize:
+        - Screen regions to monitor
+        - Keyboard/mouse tracking settings
+        - Output file locations
+        
+        TROUBLESHOOTING
+        ---------------
+        If you get a security warning:
+        1. Right-click GameTelemetry.exe
+        2. Select Properties
+        3. Check "Unblock" if available
+        4. Click Apply
+        
+        For more information:
+          https://github.com/wawworld/game-telemetry
+        
+        LICENSE
+        -------
+        See https://github.com/wawworld/game-telemetry/blob/main/LICENSE
+        "@ | Out-File -FilePath "$packageName\README.txt" -Encoding UTF8
+        
+        # Create ZIP archive
+        Compress-Archive -Path $packageName -DestinationPath "$packageName.zip" -Force
+        
+        Write-Host "✓ Package created: $packageName.zip"
+    
+    - name: Generate checksums
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $zipFile = "GameTelemetry-$version-Windows.zip"
+        $exeFile = "dist\GameTelemetry.exe"
+        
+        $zipHash = (Get-FileHash $zipFile -Algorithm SHA256).Hash
+        $exeHash = (Get-FileHash $exeFile -Algorithm SHA256).Hash
+        
+        @"
+        SHA256 Checksums
+        ================
+        
+        $zipFile
+        $zipHash
+        
+        GameTelemetry.exe
+        $exeHash
+        "@ | Out-File -FilePath "checksums.txt" -Encoding UTF8
+        
+        Write-Host "✓ Checksums generated"
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: GameTelemetry-${{ steps.version.outputs.VERSION }}-Windows
+        path: |
+          GameTelemetry-${{ steps.version.outputs.VERSION }}-Windows.zip
+          checksums.txt
+        retention-days: 90
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        name: Release ${{ steps.version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          GameTelemetry-${{ steps.version.outputs.VERSION }}-Windows.zip
+          dist/GameTelemetry.exe
+          checksums.txt
+        body: |
+          ## 🎮 Game Telemetry System - Windows Release
+          
+          ### 📦 Download
+          - **Full Package**: `GameTelemetry-${{ steps.version.outputs.VERSION }}-Windows.zip` (includes configs and reference images)
+          - **Standalone EXE**: `GameTelemetry.exe` (requires manual config setup)
+          
+          ### ✨ What's New
+          See the automatically generated release notes below.
+          
+          ### 🚀 Quick Start
+          ```bash
+          # Extract the ZIP file
+          # Open Command Prompt in the extracted folder
+          GameTelemetry.exe start --config configs\test_roi.yaml
+          ```
+          
+          ### 📋 Requirements
+          - Windows 10 or later (64-bit)
+          - No Python installation required
+          
+          ### 🔒 Security
+          SHA256 checksums are available in `checksums.txt`
+          
+          ### 📚 Documentation
+          Full documentation: https://github.com/wawworld/game-telemetry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS Release
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          VERSION="${{ inputs.version }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/}"
+        fi
+        echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+        echo "VERSION_NUM=${VERSION#v}" >> $GITHUB_OUTPUT
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build macOS App
+      run: |
+        pyinstaller --clean --noconfirm \
+          --onefile \
+          --console \
+          --name=GameTelemetry \
+          --paths=src \
+          --add-data="configs:configs" \
+          --add-data="reference_images:reference_images" \
+          --hidden-import=pynput.keyboard \
+          --hidden-import=pynput.mouse \
+          --hidden-import=pynput.keyboard._darwin \
+          --hidden-import=pynput.mouse._darwin \
+          --hidden-import=PIL \
+          --hidden-import=cv2 \
+          --hidden-import=yaml \
+          --hidden-import=psutil \
+          --collect-submodules=pynput \
+          src/cli/main.py
+    
+    - name: Verify build
+      run: |
+        if [ -f "dist/GameTelemetry" ]; then
+          echo "✓ Build successful"
+          ls -lh dist/GameTelemetry
+        else
+          echo "✗ Build failed - executable not found"
+          exit 1
+        fi
+    
+    - name: Test executable
+      run: |
+        chmod +x dist/GameTelemetry
+        dist/GameTelemetry --help
+      continue-on-error: true
+    
+    - name: Create release package
+      run: |
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        PACKAGE_NAME="GameTelemetry-${VERSION}-macOS"
+        
+        # Create package directory
+        mkdir -p "${PACKAGE_NAME}"
+        
+        # Copy files
+        cp dist/GameTelemetry "${PACKAGE_NAME}/"
+        chmod +x "${PACKAGE_NAME}/GameTelemetry"
+        cp -r configs "${PACKAGE_NAME}/"
+        cp -r reference_images "${PACKAGE_NAME}/"
+        
+        # Create README
+        cat > "${PACKAGE_NAME}/README.txt" << EOF
+        Game Telemetry System - macOS Release
+        ======================================
+        
+        Version: ${VERSION}
+        Build Date: $(date "+%Y-%m-%d %H:%M:%S")
+        
+        QUICK START
+        -----------
+        1. Open Terminal in this directory
+        2. Run: ./GameTelemetry start --config configs/test_roi.yaml
+        
+        USAGE
+        -----
+        Basic:
+          ./GameTelemetry start --config configs/test_roi.yaml
+        
+        With participant ID:
+          ./GameTelemetry start --config configs/test_roi.yaml --participant-id user123
+        
+        Show help:
+          ./GameTelemetry --help
+        
+        REQUIREMENTS
+        ------------
+        - macOS 11 (Big Sur) or later
+        - No Python installation required
+        - Accessibility permissions required for keyboard/mouse monitoring
+        
+        FIRST RUN
+        ---------
+        On first run, you may need to:
+        1. Allow the app in System Preferences > Security & Privacy
+        2. Grant accessibility permissions when prompted
+        
+        CONFIGURATION
+        -------------
+        Edit YAML files in the 'configs' directory to customize:
+        - Screen regions to monitor
+        - Keyboard/mouse tracking settings
+        - Output file locations
+        
+        For more information:
+          https://github.com/wawworld/game-telemetry
+        
+        LICENSE
+        -------
+        See https://github.com/wawworld/game-telemetry/blob/main/LICENSE
+        EOF
+        
+        # Create tarball
+        tar -czf "${PACKAGE_NAME}.tar.gz" "${PACKAGE_NAME}"
+        
+        echo "✓ Package created: ${PACKAGE_NAME}.tar.gz"
+    
+    - name: Generate checksums
+      run: |
+        VERSION="${{ steps.version.outputs.VERSION }}"
+        TAR_FILE="GameTelemetry-${VERSION}-macOS.tar.gz"
+        APP_FILE="dist/GameTelemetry"
+        
+        TAR_HASH=$(shasum -a 256 "${TAR_FILE}" | awk '{print $1}')
+        APP_HASH=$(shasum -a 256 "${APP_FILE}" | awk '{print $1}')
+        
+        cat > "checksums-macos.txt" << EOF
+        SHA256 Checksums
+        ================
+        
+        ${TAR_FILE}
+        ${TAR_HASH}
+        
+        GameTelemetry
+        ${APP_HASH}
+        EOF
+        
+        echo "✓ Checksums generated"
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: GameTelemetry-${{ steps.version.outputs.VERSION }}-macOS
+        path: |
+          GameTelemetry-${{ steps.version.outputs.VERSION }}-macOS.tar.gz
+          checksums-macos.txt
+        retention-days: 90
+    
+    - name: Add to GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        files: |
+          GameTelemetry-${{ steps.version.outputs.VERSION }}-macOS.tar.gz
+          checksums-macos.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
